@@ -9,10 +9,8 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "jsx": "react-jsx",
 
     /* Linting */
@@ -22,6 +20,6 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["."],
-  "exclude": ["node_modules", "dist"]
+  "include": ["api", "components", "services", "App.tsx", "index.tsx", "types.ts", "vite.config.ts"],
+  "exclude": ["node_modules"]
 }
