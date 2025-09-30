@@ -17,8 +17,6 @@ const recipeSchema = {
     },
 };
 
-const systemInstruction = "Você é um chef de cozinha mestre, especialista em criar receitas incríveis com um conjunto limitado de ingredientes. Sua tarefa é gerar uma lista de receitas em formato JSON, seguindo estritamente o schema fornecido. Responda sempre em Português do Brasil.";
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -36,13 +34,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Os ingredientes devem ser um array não vazio.' });
         }
         
+        const systemInstruction = "Você é um chef de cozinha mestre, especialista em criar receitas incríveis com um conjunto limitado de ingredientes. Sua tarefa é gerar uma lista de receitas em formato JSON, seguindo estritamente o schema fornecido. Responda sempre em Português do Brasil.";
         const userPrompt = `Gere 3 receitas criativas e distintas usando principalmente os seguintes ingredientes: ${ingredients.join(', ')}. Você pode assumir que ingredientes básicos como sal, pimenta, azeite e água estão disponíveis.`;
+        const fullPrompt = `${systemInstruction}\n\n---\n\n${userPrompt}`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: userPrompt,
+            contents: fullPrompt,
             config: {
-                systemInstruction: systemInstruction,
                 responseMimeType: "application/json",
                 responseSchema: recipeSchema,
             },
@@ -56,12 +55,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Clean potential markdown formatting
         responseText = responseText.trim();
         if (responseText.startsWith('```json')) {
-            responseText = responseText.slice(7).trim(); // Remove ```json and any leading whitespace
+            responseText = responseText.slice(7).trim();
         } else if (responseText.startsWith('```')) {
             responseText = responseText.slice(3).trim();
         }
         if (responseText.endsWith('```')) {
             responseText = responseText.slice(0, -3).trim();
+        }
+        
+        // Additional check to ensure response is likely JSON before parsing
+        if (!responseText.startsWith('[') && !responseText.startsWith('{')) {
+            console.error("Gemini response was not in expected JSON format:", responseText);
+            throw new Error("A resposta da IA não estava no formato JSON esperado. Por favor, tente novamente.");
         }
         
         const recipes = JSON.parse(responseText);
