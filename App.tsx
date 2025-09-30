@@ -3,13 +3,14 @@ import { IngredientInput } from './components/IngredientInput';
 import { RecipeCard } from './components/RecipeCard';
 import { Spinner } from './components/Spinner';
 import { ChefHatIcon } from './components/icons/ChefHatIcon';
-import { generateRecipes } from './services/geminiService';
+import { generateRecipes, generateImageForRecipe } from './services/geminiService';
 import { Recipe } from './types';
 
 const App: React.FC = () => {
   const [ingredients, setIngredients] = useState<string[]>(['peito de frango', 'arroz', 'brócolis']);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isGeneratingText, setIsGeneratingText] = useState<boolean>(false);
+  const [isGeneratingImages, setIsGeneratingImages] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerateRecipes = useCallback(async () => {
@@ -18,21 +19,49 @@ const App: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsGeneratingText(true);
+    setIsGeneratingImages(false);
     setError(null);
     setRecipes([]);
 
     try {
-      const recipesWithImages = await generateRecipes(ingredients);
-      setRecipes(recipesWithImages);
+      // Step 1: Generate recipes text content
+      const textOnlyRecipes = await generateRecipes(ingredients);
+      setRecipes(textOnlyRecipes);
+      setIsGeneratingText(false); // Stop main loading indicator
+
+      // Step 2: Generate images for each recipe in the background
+      setIsGeneratingImages(true);
+      const imagePromises = textOnlyRecipes.map((recipe, index) =>
+        generateImageForRecipe(recipe.title)
+          .then(({ imageUrl }) => {
+            setRecipes(currentRecipes => {
+              const updatedRecipes = [...currentRecipes];
+              // Check by title to prevent race conditions
+              if (updatedRecipes[index]?.title === recipe.title) {
+                updatedRecipes[index] = { ...updatedRecipes[index], imageUrl };
+              }
+              return updatedRecipes;
+            });
+          })
+          .catch(imageError => {
+            console.error(`Falha ao gerar imagem para "${recipe.title}":`, imageError);
+          })
+      );
+      
+      await Promise.allSettled(imagePromises);
+      setIsGeneratingImages(false);
+
     } catch (err) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : 'Desculpe, um erro inesperado ocorreu.';
       setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+      setIsGeneratingText(false);
+      setIsGeneratingImages(false);
     }
   }, [ingredients]);
+  
+  const isLoading = isGeneratingText || isGeneratingImages;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
@@ -57,10 +86,15 @@ const App: React.FC = () => {
             disabled={isLoading || ingredients.length === 0}
             className="mt-6 w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {isLoading ? (
+            {isGeneratingText ? (
               <>
                 <Spinner />
-                <span>Gerando...</span>
+                <span>Gerando Receitas...</span>
+              </>
+            ) : isGeneratingImages ? (
+              <>
+                <Spinner />
+                <span>Gerando Imagens...</span>
               </>
             ) : (
               'Gerar Receitas'
@@ -76,7 +110,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {isLoading && (
+          {isGeneratingText && (
              <div className="text-center text-gray-600">
                 <p className="text-lg animate-pulse">Nosso chef de IA está pensando em algo delicioso...</p>
             </div>

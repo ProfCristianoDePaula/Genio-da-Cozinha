@@ -2,6 +2,9 @@
   "functions": {
     "api/generate-recipes.ts": {
       "maxDuration": 45
+    },
+    "api/generate-image.ts": {
+      "maxDuration": 45
     }
   }
 }

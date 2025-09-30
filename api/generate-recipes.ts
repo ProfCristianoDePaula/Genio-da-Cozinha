@@ -40,22 +40,6 @@ async function getRecipesFromGemini(ingredients: string[]): Promise<Omit<Recipe,
     return JSON.parse(responseText);
 }
 
-async function getImageFromGemini(recipeTitle: string): Promise<string> {
-    const prompt = `Uma foto de comida profissional, de alta qualidade e apetitosa de "${recipeTitle}". O prato deve estar bem apresentado, com iluminação de estúdio e um fundo limpo e desfocado. Aspecto de foto de cardápio.`;
-
-    const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: { numberOfImages: 1, outputMimeType: 'image/jpeg', aspectRatio: '4:3' },
-    });
-
-    if (response.generatedImages && response.generatedImages.length > 0) {
-        const base64ImageBytes = response.generatedImages[0].image.imageBytes;
-        return `data:image/jpeg;base64,${base64ImageBytes}`;
-    }
-    throw new Error("Nenhuma imagem foi gerada.");
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -68,21 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const recipeStubs = await getRecipesFromGemini(ingredients);
-
-        const recipesWithImages = await Promise.all(
-            recipeStubs.map(async (recipe) => {
-                try {
-                    const imageUrl = await getImageFromGemini(recipe.title);
-                    return { ...recipe, imageUrl };
-                } catch (imageError) {
-                    console.error(`Failed to generate image for "${recipe.title}":`, imageError);
-                    return { ...recipe, imageUrl: undefined }; // Retorna a receita mesmo sem imagem
-                }
-            })
-        );
-        
-        res.status(200).json(recipesWithImages);
+        const recipes = await getRecipesFromGemini(ingredients);
+        res.status(200).json(recipes);
     } catch (error) {
         console.error("Error in serverless function:", error);
         res.status(500).json({ error: 'Failed to generate recipes from Gemini API.' });
