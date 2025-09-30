@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
-import { Recipe } from '../types';
+import type { Recipe } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -44,7 +44,7 @@ async function getImageFromGemini(recipeTitle: string): Promise<string> {
     const prompt = `Uma foto de comida profissional, de alta qualidade e apetitosa de "${recipeTitle}". O prato deve estar bem apresentado, com iluminação de estúdio e um fundo limpo e desfocado. Aspecto de foto de cardápio.`;
 
     const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-01',
+        model: 'imagen-4.0-generate-001',
         prompt: prompt,
         config: { numberOfImages: 1, outputMimeType: 'image/jpeg', aspectRatio: '4:3' },
     });
