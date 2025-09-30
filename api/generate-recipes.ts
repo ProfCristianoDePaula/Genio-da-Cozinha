@@ -2,12 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Recipe } from '../types';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const recipeSchema = {
     type: Type.ARRAY,
     items: {
@@ -24,38 +18,43 @@ const recipeSchema = {
     },
 };
 
-async function getRecipesFromGemini(ingredients: string[]): Promise<Omit<Recipe, 'imageUrl'>[]> {
-    const prompt = `Com base nos seguintes ingredientes: ${ingredients.join(', ')}, gere 3 receitas distintas em Português do Brasil. Inclua ingredientes básicos (sal, pimenta, óleo). Forneça título, descrição, tempo de preparo, tempo de cozimento, ingredientes e instruções. Formate a resposta como JSON conforme o schema.`;
-
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json", responseSchema: recipeSchema },
-    });
-
-    const responseText = response.text;
-    if (!responseText) {
-        throw new Error("Recebida uma resposta vazia da API de receitas.");
-    }
-    return JSON.parse(responseText);
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const { ingredients } = req.body;
-
-    if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
-        return res.status(400).json({ error: 'Ingredients must be a non-empty array.' });
-    }
-
     try {
-        const recipes = await getRecipesFromGemini(ingredients);
+        if (!process.env.API_KEY) {
+            // This error will now be caught by the try/catch and returned as JSON
+            throw new Error("A variável de ambiente API_KEY não está configurada.");
+        }
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+        const { ingredients } = req.body;
+
+        if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
+            return res.status(400).json({ error: 'Os ingredientes devem ser um array não vazio.' });
+        }
+        
+        const prompt = `Com base nos seguintes ingredientes: ${ingredients.join(', ')}, gere 3 receitas distintas em Português do Brasil. Inclua ingredientes básicos (sal, pimenta, óleo). Forneça título, descrição, tempo de preparo, tempo de cozimento, ingredientes e instruções. Formate a resposta como JSON conforme o schema.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: recipeSchema },
+        });
+
+        const responseText = response.text;
+        if (!responseText) {
+            throw new Error("Recebida uma resposta vazia da API de receitas.");
+        }
+        
+        const recipes = JSON.parse(responseText);
         res.status(200).json(recipes);
+
     } catch (error) {
-        console.error("Error in serverless function:", error);
-        res.status(500).json({ error: 'Failed to generate recipes from Gemini API.' });
+        console.error("Erro na função serverless 'generate-recipes':", error);
+        const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro inesperado.';
+        res.status(500).json({ error: `Falha ao gerar receitas: ${errorMessage}` });
     }
 }
