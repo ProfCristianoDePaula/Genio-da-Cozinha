@@ -27,6 +27,11 @@ const App: React.FC = () => {
     try {
       // Step 1: Generate recipes text content
       const textOnlyRecipes = await generateRecipes(ingredients);
+      
+      if (!textOnlyRecipes || textOnlyRecipes.length === 0) {
+        throw new Error("Nosso chef de IA não conseguiu criar receitas com estes ingredientes. Por favor, tente uma combinação diferente!");
+      }
+      
       setRecipes(textOnlyRecipes);
       setIsGeneratingText(false); // Stop main loading indicator
 

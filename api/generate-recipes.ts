@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Recipe } from '../types';
 
 const recipeSchema = {
     type: Type.ARRAY,
@@ -18,6 +17,8 @@ const recipeSchema = {
     },
 };
 
+const systemInstruction = "Você é um chef de cozinha mestre, especialista em criar receitas incríveis com um conjunto limitado de ingredientes. Sua tarefa é gerar uma lista de receitas em formato JSON, seguindo estritamente o schema fornecido. Responda sempre em Português do Brasil.";
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -25,7 +26,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         if (!process.env.API_KEY) {
-            // This error will now be caught by the try/catch and returned as JSON
             throw new Error("A variável de ambiente API_KEY não está configurada.");
         }
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -36,17 +36,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Os ingredientes devem ser um array não vazio.' });
         }
         
-        const prompt = `Com base nos seguintes ingredientes: ${ingredients.join(', ')}, gere 3 receitas distintas em Português do Brasil. Inclua ingredientes básicos (sal, pimenta, óleo). Forneça título, descrição, tempo de preparo, tempo de cozimento, ingredientes e instruções. Formate a resposta como JSON conforme o schema.`;
+        const userPrompt = `Gere 3 receitas criativas e distintas usando principalmente os seguintes ingredientes: ${ingredients.join(', ')}. Você pode assumir que ingredientes básicos como sal, pimenta, azeite e água estão disponíveis.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: prompt,
-            config: { responseMimeType: "application/json", responseSchema: recipeSchema },
+            contents: userPrompt,
+            config: {
+                systemInstruction: systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: recipeSchema,
+            },
         });
 
-        const responseText = response.text;
+        let responseText = response.text;
         if (!responseText) {
             throw new Error("Recebida uma resposta vazia da API de receitas.");
+        }
+
+        // Clean potential markdown formatting
+        responseText = responseText.trim();
+        if (responseText.startsWith('```json')) {
+            responseText = responseText.slice(7).trim(); // Remove ```json and any leading whitespace
+        } else if (responseText.startsWith('```')) {
+            responseText = responseText.slice(3).trim();
+        }
+        if (responseText.endsWith('```')) {
+            responseText = responseText.slice(0, -3).trim();
         }
         
         const recipes = JSON.parse(responseText);
