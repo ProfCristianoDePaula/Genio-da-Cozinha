@@ -1,22 +1,17 @@
 {
   "name": "gemini-recipe-generator",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "Recipe generator using Gemini API and Vercel Serverless Functions",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vercel dev"
   },
   "dependencies": {
-    "@google/genai": "^1.21.0",
-    "react-dom": "^19.1.1",
-    "react": "^19.1.1"
+    "@google/genai": "^1.21.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/node": "^20.12.12",
+    "@vercel/node": "^3.1.5",
+    "typescript": "^5.4.5"
   }
 }

@@ -3,7 +3,7 @@ import { IngredientInput } from './components/IngredientInput';
 import { RecipeCard } from './components/RecipeCard';
 import { Spinner } from './components/Spinner';
 import { ChefHatIcon } from './components/icons/ChefHatIcon';
-import { generateRecipes, generateRecipeImage } from './services/geminiService';
+import { generateRecipes } from './services/geminiService';
 import { Recipe } from './types';
 
 const App: React.FC = () => {
@@ -23,31 +23,14 @@ const App: React.FC = () => {
     setRecipes([]);
 
     try {
-      const generatedRecipes = await generateRecipes(ingredients);
-      setRecipes(generatedRecipes);
-      setIsLoading(false); // Stop main loading indicator
-
-      // Asynchronously generate images
-      generatedRecipes.forEach(async (recipe, index) => {
-        try {
-          const imageUrl = await generateRecipeImage(recipe.title);
-          setRecipes(prevRecipes => {
-            const updatedRecipes = [...prevRecipes];
-            if (updatedRecipes[index]) {
-              updatedRecipes[index] = { ...updatedRecipes[index], imageUrl };
-            }
-            return updatedRecipes;
-          });
-        } catch (imageError) {
-          console.error(`Failed to generate image for "${recipe.title}":`, imageError);
-          // Don't show an error to the user, just log it. The card will display a placeholder.
-        }
-      });
-
+      const recipesWithImages = await generateRecipes(ingredients);
+      setRecipes(recipesWithImages);
     } catch (err) {
       console.error(err);
-      setError('Desculpe, não conseguimos gerar receitas no momento. Por favor, tente novamente mais tarde.');
-      setIsLoading(false); // Also stop loading on error
+      const errorMessage = err instanceof Error ? err.message : 'Desculpe, um erro inesperado ocorreu.';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   }, [ingredients]);
 
@@ -109,7 +92,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="text-center py-6 text-gray-500 text-sm">
-        <p>Desenvolvido com a API Gemini por Prof. Cristiano de Paula</p>
+        <p>Desenvolvido com a API Gemini</p>
       </footer>
     </div>
   );
