@@ -92,7 +92,7 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="text-center py-6 text-gray-500 text-sm">
-        <p>Desenvolvido com a API Gemini</p>
+        <p>Desenvolvido com a API Gemini por Prof. Cristiano de Paula</p>
       </footer>
     </div>
   );
